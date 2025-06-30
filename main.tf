@@ -3,7 +3,7 @@ provider "aws" {
 }
 
 resource "aws_security_group" "consumer_sg" {
-  name        = "consumer-sg"
+  name        = "consumer-sg-V2"
   description = "Permite acceso HTTP y SSH"
 
   ingress {
@@ -27,7 +27,7 @@ resource "aws_security_group" "consumer_sg" {
 }
 
 resource "aws_iam_role" "ec2_consumer_role" {
-  name = "EC2ConsumerS3ReadOnlyRole"
+  name = "EC2ConsumerS3ReadOnlyRoleV2"
   assume_role_policy = jsonencode({
     Version = "2012-10-17",
     Statement = [{
@@ -39,12 +39,12 @@ resource "aws_iam_role" "ec2_consumer_role" {
 }
 
 resource "aws_iam_role_policy_attachment" "s3_read" {
-  role       = aws_iam_role.ec2_consumer_role.name
+  role       = aws_iam_role.ec2_consumer_role_v2.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess"
 }
 
 resource "aws_iam_instance_profile" "ec2_profile" {
-  name = "EC2ConsumerProfile"
+  name = "EC2ConsumerProfileV2"
   role = aws_iam_role.ec2_consumer_role.name
 }
 
@@ -56,5 +56,5 @@ resource "aws_instance" "consumer" {
   iam_instance_profile   = aws_iam_instance_profile.ec2_profile.name
   user_data              = file("${path.module}/scripts/setup.sh")
 
-  tags = { Name = "EC2-Consumer" }
+  tags = { Name = "EC2-Consumer-V2" }
 }
