@@ -12,9 +12,15 @@ cd /home/ubuntu/app
 # 3. Crear archivo de entorno (.env)
 echo 'BUCKET_SALIDA="upeu-bucket-salida"' > .env
 
-# 4. Crear archivo JSON local si no existe
+# 4. Crear archivo JSON local si no existe o descargar de S3
 if [ ! -f data.json ]; then
-  echo "[]" > data.json
+  # Instalar AWS CLI si no está presente
+  if ! command -v aws >/dev/null 2>&1; then
+    pip3 install awscli
+  fi
+  BUCKET="upeu-bucket-salida"
+  KEY="data-202563003422.json"
+  aws s3 cp s3://$BUCKET/$KEY data.json || echo "[]" > data.json
 fi
 
 # 5. Crear app Flask unificada
