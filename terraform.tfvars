@@ -1,0 +1,6 @@
+region         = "us-east-1"
+key_name       = "mi-llave-ec2-grupo-final"
+ami            = "ami-000d841032e72b43c"
+instance_type  = "t2.micro"
+bucket_salida  = "upeu-bucket-salida"
+bucket_entrada = "upeu-bucket-entrada"

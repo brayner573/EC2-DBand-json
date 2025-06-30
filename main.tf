@@ -1,10 +1,11 @@
 provider "aws" {
-  region = "us-east-1" # Cambia a tu región si es diferente
+  region = var.region
 }
 
 resource "aws_security_group" "consumer_sg" {
   name        = "consumer-sg"
   description = "Permite acceso HTTP y SSH"
+
   ingress {
     from_port   = 22
     to_port     = 22
@@ -48,9 +49,9 @@ resource "aws_iam_instance_profile" "ec2_profile" {
 }
 
 resource "aws_instance" "consumer" {
-  ami                    = "ami-000d841032e72b43c" # Ubuntu 22.04 LTS en us-east-1
-  instance_type          = "t2.micro"
-  key_name               = "mi-llave-ec2-grupo-final"
+  ami                    = var.ami
+  instance_type          = var.instance_type
+  key_name               = var.key_name
   vpc_security_group_ids = [aws_security_group.consumer_sg.id]
   iam_instance_profile   = aws_iam_instance_profile.ec2_profile.name
   user_data              = file("${path.module}/scripts/setup.sh")

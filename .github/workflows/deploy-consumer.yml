@@ -16,14 +16,14 @@ jobs:
         with:
           terraform_version: "1.6.6"
 
-      - name: Verifica las variables AWS
+      - name: Verifica variables AWS
         run: |
           if [ -z "$AWS_ACCESS_KEY_ID" ]; then
-            echo "Falta AWS_ACCESS_KEY_ID"
+            echo "NO HAY AWS_ACCESS_KEY_ID"
             exit 1
           fi
           if [ -z "$AWS_SECRET_ACCESS_KEY" ]; then
-            echo "Falta AWS_SECRET_ACCESS_KEY"
+            echo "NO HAY AWS_SECRET_ACCESS_KEY"
             exit 1
           fi
           echo "Variables de AWS presentes."
@@ -37,6 +37,10 @@ jobs:
 
       - name: Terraform Validate
         run: terraform validate
+        working-directory: .
+
+      - name: Terraform Plan (opcional)
+        run: terraform plan
         working-directory: .
 
       - name: Terraform Apply
