@@ -2,8 +2,8 @@ provider "aws" {
   region = var.region
 }
 
-resource "aws_security_group" "consumer_sg_bra" {
-  name        = "consumer-sg-bra"
+resource "aws_security_group" "consumer_sg_BANNER" {
+  name        = "consumer-sg-BANNER"
   description = "Permite acceso HTTP y SSH"
 
   ingress {
@@ -26,8 +26,8 @@ resource "aws_security_group" "consumer_sg_bra" {
   }
 }
 
-resource "aws_iam_role" "ec2_consumer_role_bra" {
-  name = "EC2ConsumerS3ReadOnlyRolebra"
+resource "aws_iam_role" "ec2_consumer_role_BANNER" {
+  name = "EC2ConsumerS3ReadOnlyRoleBANNER"
   assume_role_policy = jsonencode({
     Version = "2012-10-17",
     Statement = [{
@@ -38,23 +38,23 @@ resource "aws_iam_role" "ec2_consumer_role_bra" {
   })
 }
 
-resource "aws_iam_role_policy_attachment" "s3_read_bra" {
-  role       = aws_iam_role.ec2_consumer_role_bra.name
+resource "aws_iam_role_policy_attachment" "s3_read_BANNER" {
+  role       = aws_iam_role.ec2_consumer_role_BANNER.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess"
 }
 
-resource "aws_iam_instance_profile" "ec2_profile_bra" {
-  name = "EC2ConsumerProfilebra"
-  role = aws_iam_role.ec2_consumer_role_bra.name
+resource "aws_iam_instance_profile" "ec2_profile_BANNER" {
+  name = "EC2ConsumerProfileBANNER"
+  role = aws_iam_role.ec2_consumer_role_BANNER.name
 }
 
-resource "aws_instance" "consumer_bra" {
+resource "aws_instance" "consumer_BANNER" {
   ami                    = var.ami
   instance_type          = var.instance_type
   key_name               = var.key_name
-  vpc_security_group_ids = [aws_security_group.consumer_sg_bra.id]
-  iam_instance_profile   = aws_iam_instance_profile.ec2_profile_bra.name
+  vpc_security_group_ids = [aws_security_group.consumer_sg_BANNER.id]
+  iam_instance_profile   = aws_iam_instance_profile.ec2_profile_BANNER.name
   user_data              = file("${path.module}/scripts/setup.sh")
 
-  tags = { Name = "EC2-Consumer-bra" }
+  tags = { Name = "EC2-Consumer-BANNER" }
 }

@@ -3,7 +3,7 @@
 # 1. Instalar dependencias básicas
 sudo apt update -y
 sudo apt install -y python3-pip unzip sqlite3
-pip3 install flask boto3 python-dotenv
+pip3 install flask boto3 python-dotenv flask-cors awscli
 
 # 2. Crear estructura de la app
 mkdir -p /home/ubuntu/app
@@ -14,18 +14,21 @@ echo 'BUCKET_SALIDA="upeu-bucket-salida"' > .env
 
 # 4. Descargar data.json automáticamente desde S3 si no existe
 if [ ! -f data.json ]; then
-  if ! command -v aws >/dev/null 2>&1; then
-    pip3 install awscli
-  fi
   BUCKET="upeu-bucket-salida"
   KEY="processed/DataCovid.json"
   aws s3 cp s3://$BUCKET/$KEY data.json || echo "[]" > data.json
 fi
 
-# 5. Otorgar permisos de escritura a data.json
+# 5. Validar y reparar data.json si está corrupto o vacío
+if ! python3 -c "import json; json.load(open('data.json'))" 2>/dev/null; then
+  echo "[]" > data.json
+fi
+
+# 6. Otorgar propiedad y permisos correctos
+sudo chown ubuntu:ubuntu data.json
 chmod 666 data.json
 
-# 6. Crear backend Flask con CRUD, consulta S3, historial y recarga
+# 7. Crear backend Flask con CRUD, consulta S3, historial, recarga y CORS
 cat <<EOF > app.py
 from flask import Flask, request, jsonify
 import json
@@ -33,8 +36,10 @@ import os
 import sqlite3
 import boto3
 from dotenv import load_dotenv
+from flask_cors import CORS
 
 app = Flask(__name__)
+CORS(app)
 load_dotenv()
 
 DATA_FILE = 'data.json'
@@ -64,7 +69,10 @@ def load_data():
     if not os.path.exists(DATA_FILE):
         return []
     with open(DATA_FILE, 'r') as f:
-        return json.load(f)
+        try:
+            return json.load(f)
+        except Exception:
+            return []
 
 def save_data(data):
     with open(DATA_FILE, 'w') as f:
@@ -84,6 +92,9 @@ def get_by_id(item_id):
 def create_item():
     data = load_data()
     new_item = request.get_json()
+    # Validar que no exista el mismo ID
+    if any(d.get('id') == new_item.get('id') for d in data):
+        return jsonify({"error": "ID duplicado"}), 400
     data.append(new_item)
     save_data(data)
     return jsonify({"message": "Item creado"}), 201
@@ -151,8 +162,8 @@ if __name__ == '__main__':
     app.run(host='0.0.0.0', port=80)
 EOF
 
-# 7. Detener cualquier backend Flask corriendo antes
+# 8. Detener cualquier backend Flask corriendo antes
 sudo pkill -f app.py || true
 
-# 8. Lanzar el backend Flask en segundo plano
+# 9. Lanzar el backend Flask en segundo plano
 nohup python3 app.py &
