@@ -1,29 +1,31 @@
 #!/bin/bash
 
-# 1. Instalar dependencias
+# 1. Instalar dependencias básicas
 sudo apt update -y
 sudo apt install -y python3-pip unzip sqlite3
 pip3 install flask boto3 python-dotenv
 
-# 2. Crear estructura
+# 2. Crear estructura de la app
 mkdir -p /home/ubuntu/app
 cd /home/ubuntu/app
 
-# 3. Crear archivo de entorno (.env)
+# 3. Crear archivo .env con el bucket de salida
 echo 'BUCKET_SALIDA="upeu-bucket-salida"' > .env
 
-# 4. Crear archivo JSON local si no existe o descargar de S3
+# 4. Descargar data.json automáticamente desde S3 si no existe
 if [ ! -f data.json ]; then
-  # Instalar AWS CLI si no está presente
   if ! command -v aws >/dev/null 2>&1; then
     pip3 install awscli
   fi
   BUCKET="upeu-bucket-salida"
-  KEY="data-202563003422.json"
+  KEY="processed/DataCovid.json"
   aws s3 cp s3://$BUCKET/$KEY data.json || echo "[]" > data.json
 fi
 
-# 5. Crear app Flask unificada
+# 5. Otorgar permisos de escritura a data.json
+chmod 666 data.json
+
+# 6. Crear backend Flask con CRUD, consulta S3, historial y recarga
 cat <<EOF > app.py
 from flask import Flask, request, jsonify
 import json
@@ -32,16 +34,16 @@ import sqlite3
 import boto3
 from dotenv import load_dotenv
 
-# Inicialización
 app = Flask(__name__)
 load_dotenv()
 
 DATA_FILE = 'data.json'
 DB_FILE = 'consultas.db'
 BUCKET_NAME = os.getenv("BUCKET_SALIDA")
+S3_KEY = "processed/DataCovid.json"
 s3 = boto3.client('s3')
 
-# --- BASE DE DATOS ---
+# --- Inicializar base de datos SQLite ---
 def init_db():
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
@@ -75,7 +77,7 @@ def get_all():
 @app.route('/data/<int:item_id>', methods=['GET'])
 def get_by_id(item_id):
     data = load_data()
-    item = next((d for d in data if d['id'] == item_id), None)
+    item = next((d for d in data if d.get('id') == item_id), None)
     return jsonify(item or {})
 
 @app.route('/data', methods=['POST'])
@@ -91,7 +93,7 @@ def update_item(item_id):
     data = load_data()
     updated = request.get_json()
     for i, d in enumerate(data):
-        if d['id'] == item_id:
+        if d.get('id') == item_id:
             data[i] = updated
             save_data(data)
             return jsonify({"message": "Actualizado"})
@@ -100,7 +102,7 @@ def update_item(item_id):
 @app.route('/data/<int:item_id>', methods=['DELETE'])
 def delete_item(item_id):
     data = load_data()
-    data = [d for d in data if d['id'] != item_id]
+    data = [d for d in data if d.get('id') != item_id]
     save_data(data)
     return jsonify({"message": "Eliminado"})
 
@@ -108,7 +110,7 @@ def delete_item(item_id):
 @app.route('/data-json/<path:file_id>', methods=['GET'])
 def get_json_from_s3(file_id):
     file_name = f"{file_id}.json"
-    # registrar en base de datos
+    # Registrar consulta en base de datos
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
     cursor.execute("INSERT INTO historial (consulta) VALUES (?)", (file_name,))
@@ -133,10 +135,24 @@ def historial():
         {"id": row[0], "consulta": row[1], "fecha": row[2]} for row in rows
     ])
 
-# --- INICIO APP ---
+# --- RECARGAR ARCHIVO DESDE S3 ---
+@app.route('/recargar', methods=['POST'])
+def recargar():
+    try:
+        response = s3.get_object(Bucket=BUCKET_NAME, Key=S3_KEY)
+        content = response['Body'].read().decode('utf-8')
+        with open(DATA_FILE, 'w') as f:
+            f.write(content)
+        return jsonify({"message": "Archivo data.json recargado desde S3 correctamente."})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=80)
 EOF
 
-# 6. Lanzar backend en segundo plano
+# 7. Detener cualquier backend Flask corriendo antes
+sudo pkill -f app.py || true
+
+# 8. Lanzar el backend Flask en segundo plano
 nohup python3 app.py &
