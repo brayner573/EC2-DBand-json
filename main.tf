@@ -2,8 +2,8 @@ provider "aws" {
   region = var.region
 }
 
-resource "aws_security_group" "consumer_sg_v4" {
-  name        = "consumer-sg-v4"
+resource "aws_security_group" "consumer_sg_v5" {
+  name        = "consumer-sg-v5"
   description = "Permite acceso HTTP y SSH"
 
   ingress {
@@ -26,8 +26,8 @@ resource "aws_security_group" "consumer_sg_v4" {
   }
 }
 
-resource "aws_iam_role" "ec2_consumer_role_v4" {
-  name = "EC2ConsumerS3ReadOnlyRoleV4"
+resource "aws_iam_role" "ec2_consumer_role_v5" {
+  name = "EC2ConsumerS3ReadOnlyRolev5"
   assume_role_policy = jsonencode({
     Version = "2012-10-17",
     Statement = [{
@@ -38,23 +38,23 @@ resource "aws_iam_role" "ec2_consumer_role_v4" {
   })
 }
 
-resource "aws_iam_role_policy_attachment" "s3_read_v4" {
-  role       = aws_iam_role.ec2_consumer_role_v4.name
+resource "aws_iam_role_policy_attachment" "s3_read_v5" {
+  role       = aws_iam_role.ec2_consumer_role_v5.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess"
 }
 
-resource "aws_iam_instance_profile" "ec2_profile_v4" {
-  name = "EC2ConsumerProfileV4"
-  role = aws_iam_role.ec2_consumer_role_v4.name
+resource "aws_iam_instance_profile" "ec2_profile_v5" {
+  name = "EC2ConsumerProfilev5"
+  role = aws_iam_role.ec2_consumer_role_v5.name
 }
 
-resource "aws_instance" "consumer_v4" {
+resource "aws_instance" "consumer_v5" {
   ami                    = var.ami
   instance_type          = var.instance_type
   key_name               = var.key_name
-  vpc_security_group_ids = [aws_security_group.consumer_sg_v4.id]
-  iam_instance_profile   = aws_iam_instance_profile.ec2_profile_v4.name
+  vpc_security_group_ids = [aws_security_group.consumer_sg_v5.id]
+  iam_instance_profile   = aws_iam_instance_profile.ec2_profile_v5.name
   user_data              = file("${path.module}/scripts/setup.sh")
 
-  tags = { Name = "EC2-Consumer-V4" }
+  tags = { Name = "EC2-Consumer-v5" }
 }
