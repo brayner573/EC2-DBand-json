@@ -58,3 +58,21 @@ jobs:
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      - name: Copia setup.sh a la EC2
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ env.EC2_IP }}
+          username: ubuntu
+          key: ${{ secrets.EC2_KEY }}
+          source: "scripts/setup.sh"
+          target: "/home/ubuntu/"
+
+      - name: Ejecuta setup.sh remotamente
+        uses: appleboy/ssh-action@v0.1.10
+        with:
+          host: ${{ env.EC2_IP }}
+          username: ubuntu
+          key: ${{ secrets.EC2_KEY }}
+          script: |
+            chmod +x /home/ubuntu/setup.sh
+            sudo /home/ubuntu/setup.sh
