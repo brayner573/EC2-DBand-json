@@ -31,7 +31,6 @@ chmod 666 data.json
 # 7. Crear backend Flask con CRUD, consulta S3, historial, recarga y CORS
 cat <<EOF > app.py
 from flask import Flask, request, jsonify
-import json
 import os
 import sqlite3
 import boto3
@@ -42,16 +41,23 @@ app = Flask(__name__)
 CORS(app)
 load_dotenv()
 
-DATA_FILE = 'data.json'
 DB_FILE = 'consultas.db'
 BUCKET_NAME = os.getenv("BUCKET_SALIDA")
 S3_KEY = "processed/DataCovid.json"
 s3 = boto3.client('s3')
 
-# --- Inicializar base de datos SQLite ---
+# --- Inicializar base de datos SQLite (registros + historial) ---
 def init_db():
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS registros (
+            id INTEGER PRIMARY KEY,
+            ano INTEGER,
+            semana INTEGER,
+            clasificacion TEXT
+        )
+    """)
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS historial (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -64,58 +70,73 @@ def init_db():
 
 init_db()
 
-# --- CRUD LOCAL JSON ---
-def load_data():
-    if not os.path.exists(DATA_FILE):
-        return []
-    with open(DATA_FILE, 'r') as f:
-        try:
-            return json.load(f)
-        except Exception:
-            return []
-
-def save_data(data):
-    with open(DATA_FILE, 'w') as f:
-        json.dump(data, f, indent=2)
-
+# --- CRUD sobre SQLite ---
 @app.route('/data', methods=['GET'])
 def get_all():
-    return jsonify(load_data())
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM registros")
+    rows = cursor.fetchall()
+    conn.close()
+    registros = [
+        {"id": row[0], "ano": row[1], "semana": row[2], "clasificacion": row[3]}
+        for row in rows
+    ]
+    return jsonify(registros)
 
 @app.route('/data/<int:item_id>', methods=['GET'])
 def get_by_id(item_id):
-    data = load_data()
-    item = next((d for d in data if d.get('id') == item_id), None)
-    return jsonify(item or {})
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM registros WHERE id = ?", (item_id,))
+    row = cursor.fetchone()
+    conn.close()
+    if row:
+        return jsonify({"id": row[0], "ano": row[1], "semana": row[2], "clasificacion": row[3]})
+    else:
+        return jsonify({}), 404
 
 @app.route('/data', methods=['POST'])
 def create_item():
-    data = load_data()
-    new_item = request.get_json()
-    # Validar que no exista el mismo ID
-    if any(d.get('id') == new_item.get('id') for d in data):
+    nuevo = request.get_json()
+    try:
+        conn = sqlite3.connect(DB_FILE)
+        cursor = conn.cursor()
+        cursor.execute("INSERT INTO registros (id, ano, semana, clasificacion) VALUES (?, ?, ?, ?)",
+                       (nuevo['id'], nuevo['ano'], nuevo['semana'], nuevo['clasificacion']))
+        conn.commit()
+        conn.close()
+        return jsonify({"message": "Item creado"}), 201
+    except sqlite3.IntegrityError:
         return jsonify({"error": "ID duplicado"}), 400
-    data.append(new_item)
-    save_data(data)
-    return jsonify({"message": "Item creado"}), 201
 
 @app.route('/data/<int:item_id>', methods=['PUT'])
 def update_item(item_id):
-    data = load_data()
-    updated = request.get_json()
-    for i, d in enumerate(data):
-        if d.get('id') == item_id:
-            data[i] = updated
-            save_data(data)
-            return jsonify({"message": "Actualizado"})
-    return jsonify({"error": "No encontrado"}), 404
+    actualizado = request.get_json()
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    cursor.execute(
+        "UPDATE registros SET ano=?, semana=?, clasificacion=? WHERE id=?",
+        (actualizado['ano'], actualizado['semana'], actualizado['clasificacion'], item_id)
+    )
+    conn.commit()
+    conn.close()
+    if cursor.rowcount:
+        return jsonify({"message": "Actualizado"})
+    else:
+        return jsonify({"error": "No encontrado"}), 404
 
 @app.route('/data/<int:item_id>', methods=['DELETE'])
 def delete_item(item_id):
-    data = load_data()
-    data = [d for d in data if d.get('id') != item_id]
-    save_data(data)
-    return jsonify({"message": "Eliminado"})
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM registros WHERE id=?", (item_id,))
+    conn.commit()
+    conn.close()
+    if cursor.rowcount:
+        return jsonify({"message": "Eliminado"})
+    else:
+        return jsonify({"error": "No encontrado"}), 404
 
 # --- CONSULTA REMOTA DESDE S3 ---
 @app.route('/data-json/<path:file_id>', methods=['GET'])
@@ -146,15 +167,14 @@ def historial():
         {"id": row[0], "consulta": row[1], "fecha": row[2]} for row in rows
     ])
 
-# --- RECARGAR ARCHIVO DESDE S3 ---
+# --- RECARGAR ARCHIVO DESDE S3 (esto sigue igual, es opcional) ---
 @app.route('/recargar', methods=['POST'])
 def recargar():
     try:
         response = s3.get_object(Bucket=BUCKET_NAME, Key=S3_KEY)
         content = response['Body'].read().decode('utf-8')
-        with open(DATA_FILE, 'w') as f:
-            f.write(content)
-        return jsonify({"message": "Archivo data.json recargado desde S3 correctamente."})
+        # Opcionalmente, podrías migrar este JSON a la base si lo necesitas.
+        return jsonify({"message": "Archivo descargado desde S3 (no insertado en DB)."})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
