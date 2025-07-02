@@ -167,14 +167,25 @@ def historial():
         {"id": row[0], "consulta": row[1], "fecha": row[2]} for row in rows
     ])
 
-# --- RECARGAR ARCHIVO DESDE S3 (esto sigue igual, es opcional) ---
+# --- RECARGAR ARCHIVO DESDE S3 E IMPORTARLO A LA BASE ---
 @app.route('/recargar', methods=['POST'])
 def recargar():
     try:
         response = s3.get_object(Bucket=BUCKET_NAME, Key=S3_KEY)
         content = response['Body'].read().decode('utf-8')
-        # Opcionalmente, podrías migrar este JSON a la base si lo necesitas.
-        return jsonify({"message": "Archivo descargado desde S3 (no insertado en DB)."})
+        import json
+        registros = json.loads(content)
+        conn = sqlite3.connect(DB_FILE)
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM registros")  # Borra todo antes de importar
+        for reg in registros:
+            cursor.execute(
+                "INSERT OR IGNORE INTO registros (id, ano, semana, clasificacion) VALUES (?, ?, ?, ?)",
+                (reg.get('id'), reg.get('ano'), reg.get('semana'), reg.get('clasificacion'))
+            )
+        conn.commit()
+        conn.close()
+        return jsonify({"message": f"{len(registros)} registros importados desde S3 a la base de datos"})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 

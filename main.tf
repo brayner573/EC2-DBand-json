@@ -2,8 +2,8 @@ provider "aws" {
   region = var.region
 }
 
-resource "aws_security_group" "consumer_sg_Fynal" {
-  name        = "consumer-sg-Fynal"
+resource "aws_security_group" "consumer_sg_enpoint" {
+  name        = "consumer-sg-enpoint"
   description = "Permite acceso HTTP y SSH"
 
   ingress {
@@ -26,8 +26,8 @@ resource "aws_security_group" "consumer_sg_Fynal" {
   }
 }
 
-resource "aws_iam_role" "ec2_consumer_role_Fynal" {
-  name = "EC2ConsumerS3ReadOnlyRoleFynal"
+resource "aws_iam_role" "ec2_consumer_role_enpoint" {
+  name = "EC2ConsumerS3ReadOnlyRoleenpoint"
   assume_role_policy = jsonencode({
     Version = "2012-10-17",
     Statement = [{
@@ -38,23 +38,23 @@ resource "aws_iam_role" "ec2_consumer_role_Fynal" {
   })
 }
 
-resource "aws_iam_role_policy_attachment" "s3_read_Fynal" {
-  role       = aws_iam_role.ec2_consumer_role_Fynal.name
+resource "aws_iam_role_policy_attachment" "s3_read_enpoint" {
+  role       = aws_iam_role.ec2_consumer_role_enpoint.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess"
 }
 
-resource "aws_iam_instance_profile" "ec2_profile_Fynal" {
-  name = "EC2ConsumerProfileFynal"
-  role = aws_iam_role.ec2_consumer_role_Fynal.name
+resource "aws_iam_instance_profile" "ec2_profile_enpoint" {
+  name = "EC2ConsumerProfileenpoint"
+  role = aws_iam_role.ec2_consumer_role_enpoint.name
 }
 
-resource "aws_instance" "consumer_Fynal" {
+resource "aws_instance" "consumer_enpoint" {
   ami                    = var.ami
   instance_type          = var.instance_type
   key_name               = var.key_name
-  vpc_security_group_ids = [aws_security_group.consumer_sg_Fynal.id]
-  iam_instance_profile   = aws_iam_instance_profile.ec2_profile_Fynal.name
+  vpc_security_group_ids = [aws_security_group.consumer_sg_enpoint.id]
+  iam_instance_profile   = aws_iam_instance_profile.ec2_profile_enpoint.name
   user_data              = file("${path.module}/scripts/setup.sh")
 
-  tags = { Name = "EC2-Consumer-Fynal" }
+  tags = { Name = "EC2-Consumer-enpoint" }
 }
