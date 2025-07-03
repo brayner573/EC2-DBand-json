@@ -10,11 +10,11 @@ mkdir -p /home/ubuntu/app
 cd /home/ubuntu/app
 
 # 3. Crear archivo .env con el bucket de salida
-echo 'BUCKET_SALIDA="upeu-bucket-salida"' > .env
+echo 'BUCKET_SALIDA="output-bucket-covid-test"' > .env
 
 # 4. Descargar data.json automáticamente desde S3 si no existe
 if [ ! -f data.json ]; then
-  BUCKET="upeu-bucket-salida"
+  BUCKET="output-bucket-covid-test"
   KEY="processed/DataCovid.json"
   aws s3 cp s3://$BUCKET/$KEY data.json || echo "[]" > data.json
 fi
@@ -45,7 +45,7 @@ load_dotenv()
 DATA_FILE = 'data.json'
 DB_FILE = 'consultas.db'
 BUCKET_NAME = os.getenv("BUCKET_SALIDA")
-S3_KEY = "processed/DataCovid.json"
+S3_KEY = "DataCovid.json"
 s3 = boto3.client('s3')
 
 # --- Inicializar base de datos SQLite ---
