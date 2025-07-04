@@ -2,8 +2,8 @@ provider "aws" {
   region = var.region
 }
 
-resource "aws_security_group" "consumer_sg_PR" {
-  name        = "consumer-sg-PR"
+resource "aws_security_group" "consumer_sg_CA" {
+  name        = "consumer-sg-CA"
   description = "Permite acceso HTTP y SSH"
 
   ingress {
@@ -26,8 +26,8 @@ resource "aws_security_group" "consumer_sg_PR" {
   }
 }
 
-resource "aws_iam_role" "ec2_consumer_role_PR" {
-  name = "EC2ConsumerS3ReadOnlyRolePR"
+resource "aws_iam_role" "ec2_consumer_role_CA" {
+  name = "EC2ConsumerS3ReadOnlyRoleCA"
   assume_role_policy = jsonencode({
     Version = "2012-10-17",
     Statement = [{
@@ -38,23 +38,23 @@ resource "aws_iam_role" "ec2_consumer_role_PR" {
   })
 }
 
-resource "aws_iam_role_policy_attachment" "s3_read_PR" {
-  role       = aws_iam_role.ec2_consumer_role_PR.name
+resource "aws_iam_role_policy_attachment" "s3_read_CA" {
+  role       = aws_iam_role.ec2_consumer_role_CA.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess"
 }
 
-resource "aws_iam_instance_profile" "ec2_profile_PR" {
-  name = "EC2ConsumerProfilePR"
-  role = aws_iam_role.ec2_consumer_role_PR.name
+resource "aws_iam_instance_CAofile" "ec2_CAofile_CA" {
+  name = "EC2ConsumerProfileCA"
+  role = aws_iam_role.ec2_consumer_role_CA.name
 }
 
-resource "aws_instance" "consumer_PR" {
+resource "aws_instance" "consumer_CA" {
   ami                    = var.ami
   instance_type          = var.instance_type
   key_name               = var.key_name
-  vpc_security_group_ids = [aws_security_group.consumer_sg_PR.id]
-  iam_instance_profile   = aws_iam_instance_profile.ec2_profile_PR.name
+  vpc_security_group_ids = [aws_security_group.consumer_sg_CA.id]
+  iam_instance_profile   = aws_iam_instance_profile.ec2_profile_CA.name
   
 
-  tags = { Name = "EC2-Consumer-PR" }
+  tags = { Name = "EC2-Consumer-CA" }
 }
