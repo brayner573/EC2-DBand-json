@@ -43,7 +43,7 @@ resource "aws_iam_role_policy_attachment" "s3_read_CA" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess"
 }
 
-resource "aws_iam_instance_CAofile" "ec2_CAofile_CA" {
+resource "aws_iam_instance_profile" "ec2_profile_CA" {
   name = "EC2ConsumerProfileCA"
   role = aws_iam_role.ec2_consumer_role_CA.name
 }
