@@ -54,7 +54,7 @@ resource "aws_instance" "consumer_PR" {
   key_name               = var.key_name
   vpc_security_group_ids = [aws_security_group.consumer_sg_PR.id]
   iam_instance_profile   = aws_iam_instance_profile.ec2_profile_PR.name
-  user_data              = file("${path.module}/scripts/setup.sh")
+  
 
   tags = { Name = "EC2-Consumer-PR" }
 }
